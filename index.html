@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#008069">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>চ্যাট অ্যাপ</title>
+<style>
+  :root {
+    --hdr: #008069; --hdr-ink: #ffffff;
+    --bg: #ffffff; --panel: #f0f2f5; --wall: #efeae2;
+    --out: #d9fdd3; --in: #ffffff;
+    --ink: #111b21; --muted: #667781; --line: #e9edef;
+    --accent: #00a884; --accent-ink: #ffffff; --danger: #d93025; --rec: #ea0038;
+    --accent-soft: #d8f3ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --hdr: #1f2c34; --hdr-ink: #e9edef;
+      --bg: #111b21; --panel: #202c33; --wall: #0b141a;
+      --out: #005c4b; --in: #202c33;
+      --ink: #e9edef; --muted: #8696a0; --line: #222d34;
+      --accent: #00a884; --danger: #f28b82; --accent-soft: #0b3d33;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Bengali", "Hind Siliguri", sans-serif;
+    background: var(--bg); color: var(--ink); font-size: 16px; overflow: hidden; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  svg { display: block; }
+
+  /* ---------- লগইন ---------- */
+  #auth { height: 100%; overflow-y: auto; background: var(--panel); }
+  .auth-top { background: var(--hdr); color: var(--hdr-ink); padding: 40px 20px 70px; text-align: center; }
+  .auth-top h1 { margin: 0 0 4px; font-size: 26px; }
+  .auth-top p { margin: 0; opacity: .85; font-size: 14px; }
+  .auth-card { max-width: 380px; margin: -44px auto 24px; background: var(--bg); border-radius: 16px; padding: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.12); }
+  .tabs { display: flex; gap: 6px; background: var(--panel); border-radius: 12px; padding: 4px; margin-bottom: 12px; }
+  .tabs button { flex: 1; border: 0; background: transparent; padding: 9px; border-radius: 9px; font-weight: 600; color: var(--muted); }
+  .tabs button.active { background: var(--bg); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  .field { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); outline: none; }
+  .field:focus { border-color: var(--accent); }
+  .primary { width: 100%; margin-top: 16px; padding: 13px; border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .primary:disabled { opacity: .6; }
+  .err { color: var(--danger); font-size: 13px; min-height: 18px; margin-top: 10px; }
+
+  /* ---------- মূল কাঠামো ---------- */
+  #app { height: 100dvh; display: grid; grid-template-columns: minmax(300px, 400px) 1fr; }
+  .side { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--bg); border-right: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; gap: 10px; background: var(--hdr); color: var(--hdr-ink);
+    padding: 10px 8px 10px 16px; padding-top: calc(10px + env(safe-area-inset-top, 0px)); min-height: 56px; }
+  .bar h1 { flex: 1; margin: 0; font-size: 21px; font-weight: 700; }
+  .iconbtn { width: 40px; height: 40px; border: 0; background: transparent; border-radius: 50%; display: grid; place-items: center; color: inherit; flex: none; }
+  .iconbtn:active { background: rgba(255,255,255,.15); }
+  .list { flex: 1; overflow-y: auto; min-height: 0; padding-bottom: 90px; }
+  .contact { display: flex; align-items: center; gap: 14px; padding: 10px 16px; width: 100%; border: 0; background: transparent; text-align: left; }
+  .contact:active, .contact.active { background: var(--panel); }
+  .avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 19px; flex: none; }
+  .cmain { flex: 1; min-width: 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); margin-bottom: -10px; padding-top: 4px; }
+  .crow { display: flex; align-items: baseline; gap: 8px; }
+  .cname { flex: 1; min-width: 0; font-weight: 600; font-size: 16.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ctime { font-size: 12px; color: var(--muted); flex: none; }
+  .ctime.unread { color: var(--accent); }
+  .clast { flex: 1; min-width: 0; color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge { background: var(--accent); color: #fff; border-radius: 999px; font-size: 12px; font-weight: 700; min-width: 21px; height: 21px; padding: 0 6px; display: grid; place-items: center; flex: none; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 24px; font-size: 14.5px; line-height: 1.6; }
+  .fab { position: absolute; right: 18px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); width: 56px; height: 56px; border-radius: 16px; border: 0;
+    background: var(--accent); color: #fff; display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+
+  /* ---------- চ্যাট ---------- */
+  .chat { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--wall); }
+  #chat-empty { margin: auto; text-align: center; color: var(--muted); padding: 24px; line-height: 1.7; }
+  #chat-view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .bar .avatar { width: 38px; height: 38px; font-size: 16px; }
+  .bar .who { flex: 1; min-width: 0; font-weight: 600; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 8px 6px; display: flex; flex-direction: column; gap: 3px;
+    padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+  .day { align-self: center; background: var(--in); color: var(--muted); font-size: 12px; padding: 4px 12px; border-radius: 8px; margin: 8px 0 4px; box-shadow: 0 1px 1px rgba(0,0,0,.1); }
+  .hint { align-self: center; margin: auto; background: var(--in); color: var(--muted); font-size: 13.5px; padding: 8px 14px; border-radius: 10px; text-align: center; }
+  .bubble { max-width: 82%; padding: 6px 9px 6px 10px; border-radius: 10px; box-shadow: 0 1px 1px rgba(0,0,0,.12); word-break: break-word; overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.4; }
+  .bubble.in { align-self: flex-start; background: var(--in); border-top-left-radius: 2px; }
+  .bubble.out { align-self: flex-end; background: var(--out); border-top-right-radius: 2px; }
+  .meta { float: right; margin: 7px 0 -3px 12px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .bubble.voice { white-space: normal; min-width: 230px; padding: 7px 10px 5px 8px; }
+  .vp { display: flex; align-items: center; gap: 10px; }
+  .vp-btn { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; display: grid; place-items: center; flex: none; }
+  .vp-btn:disabled { opacity: .6; }
+  .vp-track { flex: 1; height: 26px; display: flex; align-items: center; cursor: pointer; min-width: 60px; }
+  .vp-rail { position: relative; width: 100%; height: 4px; border-radius: 2px; background: rgba(128,128,128,.4); }
+  .vp-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 2px; background: var(--accent); }
+  .vp-dot { position: absolute; top: 50%; left: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--accent); }
+  .vp-foot { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin: 0 0 0 48px; font-variant-numeric: tabular-nums; }
+
+  #emojis { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; padding: 8px; background: var(--bg); border-top: 1px solid var(--line); }
+  #emojis button { border: 0; background: transparent; font-size: 26px; padding: 4px 0; border-radius: 8px; }
+  #emojis button:active { background: var(--panel); }
+  .composer { display: flex; align-items: flex-end; gap: 8px; padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+  .inputwrap { flex: 1; min-width: 0; display: flex; align-items: center; background: var(--in); border-radius: 24px; padding: 0 6px 0 4px; box-shadow: 0 1px 1px rgba(0,0,0,.12); }
+  .inputwrap .iconbtn { color: var(--muted); font-size: 24px; }
+  #msg-input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; padding: 12px 6px; }
+  .roundbtn { width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; display: grid; place-items: center; flex: none; }
+  .recbar { display: flex; align-items: center; gap: 12px; padding: 6px 10px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--wall); }
+  .recbox { flex: 1; display: flex; align-items: center; gap: 10px; background: var(--in); border-radius: 24px; padding: 0 16px; height: 48px; box-shadow: 0 1px 1px rgba(0,0,0,.12); }
+  .recdot { width: 11px; height: 11px; border-radius: 50%; background: var(--rec); animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+  @media (prefers-reduced-motion: reduce) { .recdot { animation: none; } }
+  .rectime { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .rechint { color: var(--muted); font-size: 13px; margin-left: auto; }
+  .recbar .iconbtn { color: var(--danger); width: 44px; height: 44px; }
+
+  /* ---------- ফিল্টার ও নিচের ট্যাব ---------- */
+  .chips { display: flex; gap: 8px; padding: 8px 14px; overflow-x: auto; scrollbar-width: none; }
+  .chip { flex: none; border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 6px 14px; font-size: 14px; color: var(--muted); }
+  .chip.active { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 600; }
+  .tabbar { display: flex; background: var(--bg); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .tab { flex: 1; border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; font-size: 12px; color: var(--muted); }
+  .tab .ti { width: 56px; height: 30px; border-radius: 15px; display: grid; place-items: center; }
+  .tab.active { color: var(--ink); font-weight: 700; }
+  .tab.active .ti { background: var(--accent-soft); color: var(--accent); }
+  .menurow { display: block; width: 100%; text-align: left; padding: 13px 4px; border: 0; border-top: 1px solid var(--line); background: transparent; font-size: 15.5px; }
+
+  /* ---------- শিট ---------- */
+  #overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; z-index: 30; }
+  .sheet { width: 100%; max-width: 480px; background: var(--bg); border-radius: 20px 20px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .sheet h2 { margin: 0 0 4px; font-size: 19px; }
+  .sheet .sub { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+  .bigcode { font-size: 30px; font-weight: 800; letter-spacing: .14em; color: var(--accent); text-align: center; margin: 14px 0; user-select: all; font-variant-numeric: tabular-nums; }
+  .btnrow { display: flex; gap: 8px; margin-top: 12px; }
+  .btn { flex: 1; padding: 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-weight: 600; }
+  .btn.main { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.danger { color: var(--danger); }
+  .msgline { min-height: 20px; font-size: 13.5px; margin-top: 8px; }
+  #toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(90px + env(safe-area-inset-bottom, 0px)); background: #323b40; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 40; max-width: 90vw; text-align: center; }
+
+  @media (max-width: 760px) {
+    #app { grid-template-columns: 1fr; }
+    #app.in-chat .side { display: none; }
+    #app:not(.in-chat) .chat { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- লগইন / রেজিস্টার -->
+<div id="auth">
+  <div class="auth-top">
+    <h1>চ্যাট অ্যাপ</h1>
+    <p>ইউনিক কোডে বন্ধুদের সাথে মেসেজ ও ভয়েস</p>
+  </div>
+  <div class="auth-card">
+    <div class="tabs">
+      <button id="tab-login" class="active" type="button">লগইন</button>
+      <button id="tab-register" type="button">নতুন অ্যাকাউন্ট</button>
+    </div>
+    <form id="auth-form">
+      <div id="name-wrap" hidden>
+        <label for="name">তোমার নাম</label>
+        <input class="field" id="name" type="text" maxlength="40" autocomplete="name">
+      </div>
+      <label for="phone">মোবাইল নাম্বার</label>
+      <input class="field" id="phone" type="tel" inputmode="tel" autocomplete="username" placeholder="01XXXXXXXXX">
+      <label for="password">পাসওয়ার্ড</label>
+      <input class="field" id="password" type="password" autocomplete="current-password">
+      <div class="err" id="auth-err"></div>
+      <button class="primary" id="auth-btn" type="submit">লগইন</button>
+    </form>
+  </div>
+</div>
+
+<!-- মূল অ্যাপ -->
+<div id="app" hidden>
+  <section class="side">
+    <header class="bar">
+      <h1>চ্যাট</h1>
+      <button class="iconbtn" type="button" data-ico="camera" data-soon="ক্যামেরা" aria-label="ক্যামেরা"></button>
+      <button class="iconbtn" type="button" data-ico="search" data-soon="সার্চ" aria-label="সার্চ"></button>
+      <button class="iconbtn" id="menu-btn" type="button" aria-label="মেনু"></button>
+    </header>
+    <div class="chips">
+      <button class="chip active" type="button">সব</button>
+      <button class="chip" type="button" data-soon="ফিল্টার">না-পড়া</button>
+      <button class="chip" type="button" data-soon="ফিল্টার">প্রিয়</button>
+      <button class="chip" type="button" data-soon="গ্রুপ">গ্রুপ</button>
+    </div>
+    <div class="list" id="contact-list"></div>
+    <button class="fab" id="fab" type="button" aria-label="কোড দিয়ে বন্ধু যোগ করো"></button>
+    <nav class="tabbar">
+      <button class="tab active" type="button"><span class="ti" data-ico="chat"></span>চ্যাট</button>
+      <button class="tab" type="button" data-soon="আপডেট"><span class="ti" data-ico="status"></span>আপডেট</button>
+      <button class="tab" type="button" data-soon="কমিউনিটি"><span class="ti" data-ico="people"></span>কমিউনিটি</button>
+      <button class="tab" type="button" data-soon="কল"><span class="ti" data-ico="phone"></span>কল</button>
+    </nav>
+  </section>
+
+  <section class="chat">
+    <div id="chat-empty">বাঁদিক থেকে কাউকে বেছে নাও,<br>অথবা বন্ধুর কোড দিয়ে নতুন কাউকে যোগ করো।</div>
+    <div id="chat-view" hidden>
+      <header class="bar">
+        <button class="iconbtn" id="back" type="button" aria-label="পেছনে"></button>
+        <div class="avatar" id="chat-av"></div>
+        <div class="who" id="chat-name"></div>
+        <button class="iconbtn" type="button" data-ico="video" data-soon="ভিডিও কল" aria-label="ভিডিও কল"></button>
+        <button class="iconbtn" type="button" data-ico="phone" data-soon="অডিও কল" aria-label="অডিও কল"></button>
+        <button class="iconbtn" type="button" data-ico="dots" data-soon="মেনু" aria-label="মেনু"></button>
+      </header>
+      <div id="msgs"></div>
+      <div id="emojis" hidden></div>
+      <form class="composer" id="composer">
+        <div class="inputwrap">
+          <button class="iconbtn" id="emo-btn" type="button" aria-label="ইমোজি">😊</button>
+          <input id="msg-input" type="text" placeholder="মেসেজ" autocomplete="off" maxlength="4000" enterkeyhint="send">
+          <button class="iconbtn" type="button" data-ico="clip" data-soon="ফাইল পাঠানো" aria-label="ফাইল"></button>
+          <button class="iconbtn" id="cam-btn" type="button" data-ico="camera" data-soon="ক্যামেরা" aria-label="ক্যামেরা"></button>
+        </div>
+        <button class="roundbtn" id="action-btn" type="button" aria-label="ভয়েস রেকর্ড"></button>
+      </form>
+      <div class="recbar" id="rec-bar" hidden>
+        <button class="iconbtn" id="rec-cancel" type="button" aria-label="বাতিল"></button>
+        <div class="recbox"><span class="recdot"></span><span class="rectime" id="rec-time">0:00</span><span class="rechint">রেকর্ড হচ্ছে</span></div>
+        <button class="roundbtn" id="rec-send" type="button" aria-label="পাঠাও"></button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- শিট (নিচ থেকে ওঠা প্যানেল) -->
+<div id="overlay" hidden>
+  <div class="sheet" id="sheet-add" hidden>
+    <h2>নতুন বন্ধু</h2>
+    <p class="sub">বন্ধুর ইউনিক কোডটা এখানে লেখো।</p>
+    <form id="add-form">
+      <input class="field" id="add-code" placeholder="ABCD-2345" maxlength="9" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:.1em;text-align:center;font-size:20px">
+      <div class="msgline" id="add-msg"></div>
+      <div class="btnrow">
+        <button class="btn" type="button" data-close>বাতিল</button>
+        <button class="btn main" type="submit">যোগ করো</button>
+      </div>
+    </form>
+  </div>
+  <div class="sheet" id="sheet-me" hidden>
+    <h2 id="me-name"></h2>
+    <p class="sub">তোমার ইউনিক কোড। বন্ধুকে এটা দাও, সে এটা দিয়ে তোমাকে যোগ করবে।</p>
+    <div class="bigcode" id="my-code"></div>
+    <div class="btnrow">
+      <button class="btn main" id="copy-code" type="button">কপি করো</button>
+      <button class="btn" id="share-code" type="button" hidden>শেয়ার</button>
+    </div>
+    <div style="margin-top:12px">
+      <button class="menurow" type="button" data-soon="নতুন গ্রুপ">নতুন গ্রুপ</button>
+      <button class="menurow" type="button" data-soon="তারকা চিহ্নিত মেসেজ">তারকা চিহ্নিত মেসেজ</button>
+      <button class="menurow" type="button" data-soon="সেটিংস">সেটিংস</button>
+    </div>
+    <div class="btnrow">
+      <button class="btn" type="button" data-close>বন্ধ করো</button>
+      <button class="btn danger" id="logout" type="button">লগআউট</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const ICONS = {
+    mic: '<path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/>',
+    send: '<path d="M2 21l21-9L2 3v7l15 2-15 2z"/>',
+    back: '<path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/>',
+    plus: '<path d="M20 14h-6v6h-4v-6H4v-4h6V4h4v6h6z"/>',
+    play: '<path d="M8 5v14l11-7z"/>',
+    pause: '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>',
+    trash: '<path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM19 4h-3.5l-1-1h-5l-1 1H5v2h14z"/>',
+    dots: '<circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>',
+    search: '<path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>',
+    camera: '<path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8.2a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4z"/>',
+    video: '<path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>',
+    phone: '<path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>',
+    clip: '<path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/>',
+    chat: '<path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>',
+    status: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/><circle cx="12" cy="12" r="3.5"/>',
+    people: '<path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>',
+  };
+  function ico(name, size) {
+    const s = document.createElementNS(NS, 'svg');
+    s.setAttribute('viewBox', '0 0 24 24');
+    s.setAttribute('width', size || 24); s.setAttribute('height', size || 24);
+    s.setAttribute('fill', 'currentColor');
+    s.innerHTML = ICONS[name]; // শুধু উপরের নির্দিষ্ট আইকন, ব্যবহারকারীর লেখা নয়
+    return s;
+  }
+  function setIcon(node, name, size) { node.textContent = ''; node.append(ico(name, size)); }
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  const EMOJIS = ['😀','😂','🥰','😍','😎','🤔','😢','😡','👍','👏','🙏','❤️','🔥','🎉','😴','🤝','🙌','😅','🥳','💯','🌹','☕','🍕','✅','😇','😘','🤣','😭','😜','🤗','💪','👋'];
+  const COLORS = ['#00a884', '#5b6cff', '#e0568b', '#d9822b', '#7a5cd6', '#2b9bd9', '#c2493d', '#3f8f4f'];
+
+  const state = { token: localStorage.getItem('token'), me: null, contacts: [], current: null,
+    msgs: {}, lastPoll: 0, lastRead: {}, pollTimer: null, mode: 'login' };
+
+  // ---------- API ----------
+  async function api(path, opts = {}) {
+    const res = await fetch('/api' + path, {
+      method: opts.method || 'GET',
+      headers: { ...(opts.raw ? {} : { 'Content-Type': 'application/json' }), ...(opts.headers || {}), ...(state.token ? { Authorization: 'Bearer ' + state.token } : {}) },
+      body: opts.raw ? opts.raw : opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && state.token && !path.startsWith('/login')) {
+      doLogout(false);
+      $('auth-err').textContent = 'লগইনের মেয়াদ শেষ। আবার লগইন করো, অ্যাকাউন্ট না পেলে নতুন করে খোলো।';
+    }
+    if (!res.ok) throw new Error(data.error || 'কিছু একটা সমস্যা হয়েছে');
+    return data;
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    let t = $('toast');
+    if (!t) { t = el('div'); t.id = 'toast'; document.body.append(t); }
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2800);
+  }
+
+  // ---------- সময় ----------
+  const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
+  function fmtTime(ts) { return new Date(ts).toLocaleTimeString('bn-BD', { hour: 'numeric', minute: '2-digit' }); }
+  function dayLabel(ts) {
+    const now = Date.now();
+    if (sameDay(ts, now)) return 'আজ';
+    if (sameDay(ts, now - 864e5)) return 'গতকাল';
+    return new Date(ts).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  function listTime(ts) {
+    if (!ts) return '';
+    const now = Date.now();
+    if (sameDay(ts, now)) return fmtTime(ts);
+    if (sameDay(ts, now - 864e5)) return 'গতকাল';
+    return new Date(ts).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' });
+  }
+  function fmtDur(s) { s = Math.max(0, Math.round(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+
+  // ---------- লগইন / রেজিস্টার ----------
+  function setMode(mode) {
+    state.mode = mode;
+    $('tab-login').classList.toggle('active', mode === 'login');
+    $('tab-register').classList.toggle('active', mode === 'register');
+    $('name-wrap').hidden = mode !== 'register';
+    $('auth-btn').textContent = mode === 'login' ? 'লগইন' : 'অ্যাকাউন্ট খোলো';
+    $('password').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+    $('auth-err').textContent = '';
+  }
+  $('tab-login').onclick = () => setMode('login');
+  $('tab-register').onclick = () => setMode('register');
+
+  $('auth-form').onsubmit = async (e) => {
+    e.preventDefault();
+    $('auth-err').textContent = '';
+    $('auth-btn').disabled = true;
+    try {
+      const body = { phone: $('phone').value, password: $('password').value };
+      if (state.mode === 'register') body.name = $('name').value;
+      const data = await api(state.mode === 'login' ? '/login' : '/register', { method: 'POST', body });
+      state.token = data.token;
+      localStorage.setItem('token', data.token);
+      $('password').value = '';
+      await startApp(data.user);
+    } catch (err) { $('auth-err').textContent = err.message; }
+    $('auth-btn').disabled = false;
+  };
+
+  function doLogout(callApi = true) {
+    if (callApi && state.token) api('/logout', { method: 'POST' }).catch(() => {});
+    stopRec(false);
+    clearTimeout(state.pollTimer);
+    localStorage.removeItem('token');
+    Object.assign(state, { token: null, me: null, contacts: [], current: null, msgs: {}, lastPoll: 0 });
+    closeSheets();
+    $('app').hidden = true;
+    $('auth').hidden = false;
+  }
+
+  // ---------- অ্যাপ শুরু ----------
+  async function startApp(user) {
+    state.me = user;
+    try { state.lastRead = JSON.parse(localStorage.getItem('lastRead:' + user.id) || '{}'); } catch { state.lastRead = {}; }
+    $('me-name').textContent = user.name;
+    $('my-code').textContent = user.code;
+    $('auth').hidden = true;
+    $('app').hidden = false;
+    $('app').classList.remove('in-chat');
+    showChat(null);
+    await loadContacts();
+    const { messages } = await api('/poll?after=0');
+    ingest(messages);
+    renderContacts();
+    clearTimeout(state.pollTimer);
+    schedulePoll();
+  }
+  function schedulePoll() {
+    state.pollTimer = setTimeout(async () => { await poll(); if (state.token) schedulePoll(); }, document.hidden ? 6000 : 1500);
+  }
+
+  async function loadContacts() {
+    const { contacts } = await api('/contacts');
+    state.contacts = contacts;
+    renderContacts();
+  }
+  function saveLastRead() { try { localStorage.setItem('lastRead:' + state.me.id, JSON.stringify(state.lastRead)); } catch {} }
+  function unreadCount(id) {
+    const lr = state.lastRead[id] || 0;
+    return (state.msgs[id] || []).filter((m) => m.from_id === id && m.id > lr).length;
+  }
+
+  let needContactRefresh = false;
+  function ingest(messages) {
+    for (const m of messages) {
+      state.lastPoll = Math.max(state.lastPoll, m.id);
+      const other = m.from_id === state.me.id ? m.to_id : m.from_id;
+      const list = (state.msgs[other] ||= []);
+      if (!list.some((x) => x.id === m.id)) list.push(m);
+      list.sort((a, b) => a.id - b.id);
+      const c = state.contacts.find((c) => c.id === other);
+      if (c) { c.last_text = m.text; c.last_at = m.created_at; } else needContactRefresh = true;
+    }
+  }
+
+  async function poll() {
+    if (!state.token) return;
+    try {
+      const { messages } = await api('/poll?after=' + state.lastPoll);
+      if (!messages.length) return;
+      ingest(messages);
+      if (needContactRefresh) { needContactRefresh = false; await loadContacts(); }
+      if (state.current) markRead(state.current);
+      renderContacts();
+      if (state.current) renderMsgs();
+    } catch { /* নেটওয়ার্ক সমস্যা হলে পরের বার আবার */ }
+  }
+
+  // ---------- কন্টাক্ট লিস্ট ----------
+  function avatar(c, extra) {
+    const a = el('div', 'avatar' + (extra ? ' ' + extra : ''), (c.name || '?').trim().charAt(0).toUpperCase());
+    a.style.background = COLORS[c.id % COLORS.length];
+    return a;
+  }
+  function renderContacts() {
+    const box = $('contact-list');
+    box.textContent = '';
+    const sorted = [...state.contacts].sort((a, b) => (b.last_at || 0) - (a.last_at || 0));
+    if (!sorted.length) {
+      box.append(el('div', 'empty', 'এখনো কেউ নেই।\nনিচের + বাটন চেপে বন্ধুর কোড দিয়ে যোগ করো।'));
+      box.firstChild.style.whiteSpace = 'pre-line';
+      return;
+    }
+    for (const c of sorted) {
+      const row = el('button', 'contact' + (state.current === c.id ? ' active' : '')); row.type = 'button';
+      const main = el('div', 'cmain');
+      const n = state.current === c.id ? 0 : unreadCount(c.id);
+      const r1 = el('div', 'crow');
+      r1.append(el('div', 'cname', c.name), el('div', 'ctime' + (n ? ' unread' : ''), listTime(c.last_at)));
+      const r2 = el('div', 'crow');
+      r2.append(el('div', 'clast', c.last_text || 'নতুন বন্ধু'));
+      if (n > 0) r2.append(el('span', 'badge', String(n)));
+      main.append(r1, r2);
+      row.append(avatar(c), main);
+      row.onclick = () => openChat(c.id);
+      box.append(row);
+    }
+  }
+
+  // ---------- চ্যাট খোলা ----------
+  function showChat(contact) {
+    $('chat-empty').hidden = !!contact;
+    $('chat-view').hidden = !contact;
+    if (!contact) return;
+    $('chat-name').textContent = contact.name;
+    const old = $('chat-av'); const a = avatar(contact); a.id = 'chat-av'; old.replaceWith(a);
+  }
+
+  async function openChat(id) {
+    if (state.current !== id) stopRec(false);
+    state.current = id;
+    const c = state.contacts.find((c) => c.id === id);
+    showChat(c);
+    $('app').classList.add('in-chat');
+    $('emojis').hidden = true;
+    if (!history.state || !history.state.chat) history.pushState({ chat: true }, '');
+    try {
+      const { messages } = await api('/messages?with=' + id);
+      state.msgs[id] = messages;
+      for (const m of messages) if (m.to_id === state.me.id) state.lastPoll = Math.max(state.lastPoll, m.id);
+    } catch (err) { toast(err.message); }
+    markRead(id);
+    renderContacts();
+    renderMsgs(true);
+    updateAction();
+    if (matchMedia('(min-width: 761px)').matches) $('msg-input').focus();
+  }
+  function closeChat() {
+    stopRec(false);
+    pauseAll();
+    state.current = null;
+    $('app').classList.remove('in-chat');
+    showChat(null);
+    renderContacts();
+  }
+  $('back').onclick = () => { if (history.state && history.state.chat) history.back(); else closeChat(); };
+  window.addEventListener('popstate', () => { if (state.current) closeChat(); });
+
+  function markRead(id) {
+    const list = state.msgs[id] || [];
+    const last = list.length ? list[list.length - 1].id : 0;
+    if ((state.lastRead[id] || 0) < last) { state.lastRead[id] = last; saveLastRead(); }
+  }
+
+  // ---------- মেসেজ দেখানো (নতুনগুলো শুধু যোগ হয়, তাই চলতে থাকা ভয়েস থামে না) ----------
+  const R = { chat: null, ids: new Set(), maxId: 0, lastDay: 0 };
+  function renderMsgs(force) {
+    const box = $('msgs');
+    const list = state.msgs[state.current] || [];
+    const fresh = force || R.chat !== state.current;
+    const outOfOrder = list.some((m) => !R.ids.has(m.id) && m.id < R.maxId);
+    if (fresh || outOfOrder) {
+      if (outOfOrder && !fresh) pauseAll();
+      box.textContent = '';
+      Object.assign(R, { chat: state.current, ids: new Set(), maxId: 0, lastDay: 0 });
+    }
+    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 140;
+    let added = false, mineAdded = false;
+    for (const m of list) {
+      if (R.ids.has(m.id)) continue;
+      const hint = box.querySelector('.hint'); if (hint) hint.remove();
+      R.ids.add(m.id); R.maxId = Math.max(R.maxId, m.id);
+      if (!sameDay(R.lastDay || 0, m.created_at) || !R.lastDay) { box.append(el('div', 'day', dayLabel(m.created_at))); R.lastDay = m.created_at; }
+      box.append(bubble(m));
+      added = true; if (m.from_id === state.me.id) mineAdded = true;
+    }
+    if (!list.length && !box.firstChild) box.append(el('div', 'hint', 'এখনো কোনো মেসেজ নেই। প্রথম মেসেজটা পাঠাও 👋'));
+    if (fresh || outOfOrder || (added && (nearBottom || mineAdded))) box.scrollTop = box.scrollHeight;
+  }
+
+  function bubble(m) {
+    const mine = m.from_id === state.me.id;
+    const b = el('div', 'bubble ' + (mine ? 'out' : 'in'));
+    if (m.kind === 'voice') {
+      b.classList.add('voice');
+      b.append(voicePlayer(m));
+      const foot = el('div', 'vp-foot');
+      foot.append(el('span', null, ''), el('span', null, fmtTime(m.created_at)));
+      b.append(foot);
+      b._dur = foot.firstChild; b._dur.textContent = fmtDur(m.duration);
+    } else {
+      b.append(document.createTextNode(m.text), el('span', 'meta', fmtTime(m.created_at)));
+    }
+    return b;
+  }
+
+  // ---------- ভয়েস চালানো ----------
+  const audioUrls = new Map();
+  let playing = null; // { audio, reset }
+  function pauseAll() { if (playing) { playing.audio.pause(); } }
+  async function getAudioUrl(id) {
+    if (audioUrls.has(id)) return audioUrls.get(id);
+    const res = await fetch('/api/audio?id=' + id, { headers: { Authorization: 'Bearer ' + state.token } });
+    if (!res.ok) throw new Error('audio');
+    const url = URL.createObjectURL(await res.blob());
+    audioUrls.set(id, url);
+    return url;
+  }
+  function voicePlayer(m) {
+    const w = el('div', 'vp');
+    const btn = el('button', 'vp-btn'); btn.type = 'button'; btn.setAttribute('aria-label', 'ভয়েস চালাও');
+    setIcon(btn, 'play');
+    const track = el('div', 'vp-track'), rail = el('div', 'vp-rail'), bar = el('div', 'vp-bar'), dot = el('div', 'vp-dot');
+    rail.append(bar, dot); track.append(rail);
+    w.append(btn, track);
+    let audio = null, loading = false;
+    const total = Math.max(1, m.duration || 1);
+    const paint = (t) => { const p = Math.min(1, t / total) * 100; bar.style.width = p + '%'; dot.style.left = p + '%'; };
+    paint(0);
+    btn.onclick = async () => {
+      if (audio && !audio.paused) { audio.pause(); return; }
+      if (playing && playing.audio !== audio) playing.audio.pause();
+      if (!audio) {
+        if (loading) return;
+        loading = true; btn.disabled = true;
+        try {
+          audio = new Audio(await getAudioUrl(m.audio_id));
+          audio.onplay = () => { setIcon(btn, 'pause'); playing = { audio }; };
+          audio.onpause = () => { setIcon(btn, 'play'); if (playing && playing.audio === audio) playing = null; };
+          audio.ontimeupdate = () => paint(audio.currentTime);
+          audio.onended = () => { audio.currentTime = 0; paint(0); setIcon(btn, 'play'); };
+        } catch { toast('ভয়েস চালানো যায়নি'); loading = false; btn.disabled = false; return; }
+        loading = false; btn.disabled = false;
+      }
+      audio.play().catch(() => toast('ভয়েস চালানো যায়নি'));
+    };
+    track.onclick = (e) => {
+      if (!audio) return;
+      const r = rail.getBoundingClientRect();
+      audio.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * total;
+    };
+    return w;
+  }
+
+  // ---------- টেক্সট পাঠানো ----------
+  function updateAction() {
+    const has = $('msg-input').value.trim().length > 0;
+    setIcon($('action-btn'), has ? 'send' : 'mic');
+    $('cam-btn').hidden = has;
+    $('action-btn').setAttribute('aria-label', has ? 'পাঠাও' : 'ভয়েস রেকর্ড');
+  }
+  $('msg-input').addEventListener('input', updateAction);
+  $('action-btn').onclick = () => { if ($('msg-input').value.trim()) $('composer').requestSubmit(); else startRec(); };
+  $('composer').onsubmit = async (e) => {
+    e.preventDefault();
+    const input = $('msg-input');
+    const text = input.value.trim();
+    if (!text || !state.current) return;
+    input.value = ''; updateAction();
+    const to = state.current;
+    try {
+      const { message } = await api('/messages', { method: 'POST', body: { to, text } });
+      afterSend(to, message);
+    } catch (err) { input.value = text; updateAction(); toast(err.message); }
+  };
+  function afterSend(to, message) {
+    const list = (state.msgs[to] ||= []);
+    if (!list.some((x) => x.id === message.id)) list.push(message);
+    list.sort((a, b) => a.id - b.id);
+    const c = state.contacts.find((c) => c.id === to);
+    if (c) { c.last_text = message.text; c.last_at = message.created_at; }
+    if (state.current === to) { markRead(to); renderMsgs(); }
+    renderContacts();
+  }
+
+  // ---------- ইমোজি ----------
+  for (const e of EMOJIS) {
+    const b = el('button', null, e); b.type = 'button';
+    b.onclick = () => { const i = $('msg-input'); i.value += e; updateAction(); };
+    $('emojis').append(b);
+  }
+  $('emo-btn').onclick = () => { $('emojis').hidden = !$('emojis').hidden; };
+
+  // ---------- ভয়েস রেকর্ড ----------
+  let rec = null;
+  async function startRec() {
+    if (rec || !state.current) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+      toast('এই ব্রাউজারে ভয়েস রেকর্ড চলবে না'); return;
+    }
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { toast('মাইক্রোফোনের অনুমতি দাও'); return; }
+    const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find((t) => MediaRecorder.isTypeSupported(t)) || '';
+    let mr;
+    try { mr = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 }); }
+    catch { stream.getTracks().forEach((t) => t.stop()); toast('রেকর্ড শুরু করা যায়নি'); return; }
+    pauseAll();
+    rec = { mr, stream, chunks: [], start: Date.now(), send: false, to: state.current, mime: (mr.mimeType || mime || 'audio/webm') };
+    mr.ondataavailable = (e) => { if (e.data && e.data.size) rec.chunks.push(e.data); };
+    const mine = rec;
+    mr.onstop = () => finishRec(mine);
+    mr.start(250);
+    $('composer').hidden = true; $('emojis').hidden = true; $('rec-bar').hidden = false;
+    $('rec-time').textContent = '0:00';
+    rec.timer = setInterval(() => {
+      const s = (Date.now() - rec.start) / 1000;
+      $('rec-time').textContent = fmtDur(s);
+      if (s >= 299) stopRec(true);
+    }, 250);
+  }
+  function stopRec(send) {
+    if (!rec) return;
+    rec.send = send;
+    clearInterval(rec.timer);
+    rec.stream.getTracks().forEach((t) => t.stop());
+    if (rec.mr.state !== 'inactive') rec.mr.stop(); else finishRec(rec);
+  }
+  async function finishRec(r) {
+    if (rec === r) rec = null;
+    $('rec-bar').hidden = true; $('composer').hidden = false;
+    if (!r.send) return;
+    const dur = Math.round((Date.now() - r.start) / 1000);
+    if (dur < 1 || !r.chunks.length) { toast('অনেক ছোট হয়ে গেছে'); return; }
+    const blob = new Blob(r.chunks, { type: r.mime });
+    try {
+      const { message } = await api('/voice?to=' + r.to + '&duration=' + dur, { method: 'POST', raw: blob, headers: { 'Content-Type': r.mime.split(';')[0] } });
+      afterSend(r.to, message);
+    } catch (err) { toast(err.message || 'ভয়েস পাঠানো যায়নি'); }
+  }
+  $('rec-cancel').onclick = () => stopRec(false);
+  $('rec-send').onclick = () => stopRec(true);
+
+  // ---------- শিট: বন্ধু যোগ, আমার কোড ----------
+  function openSheet(id) { $('overlay').hidden = false; $('sheet-add').hidden = id !== 'sheet-add'; $('sheet-me').hidden = id !== 'sheet-me'; }
+  function closeSheets() { $('overlay').hidden = true; $('sheet-add').hidden = true; $('sheet-me').hidden = true; }
+  $('overlay').addEventListener('click', (e) => { if (e.target === $('overlay') || e.target.hasAttribute('data-close')) closeSheets(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheets(); });
+  $('fab').onclick = () => { $('add-msg').textContent = ''; openSheet('sheet-add'); setTimeout(() => $('add-code').focus(), 50); };
+  $('menu-btn').onclick = () => openSheet('sheet-me');
+
+  $('add-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const msg = $('add-msg');
+    try {
+      const { contact } = await api('/contacts', { method: 'POST', body: { code: $('add-code').value } });
+      $('add-code').value = ''; msg.textContent = '';
+      closeSheets();
+      await loadContacts();
+      openChat(contact.id);
+    } catch (err) { msg.style.color = 'var(--danger)'; msg.textContent = err.message; }
+  };
+  $('copy-code').onclick = async () => {
+    const b = $('copy-code');
+    try { await navigator.clipboard.writeText(state.me.code); b.textContent = 'কপি হয়েছে ✓'; }
+    catch { b.textContent = 'চেপে ধরে কপি করো'; }
+    setTimeout(() => { b.textContent = 'কপি করো'; }, 1600);
+  };
+  if (navigator.share) {
+    $('share-code').hidden = false;
+    $('share-code').onclick = () => navigator.share({ text: 'আমার চ্যাট কোড: ' + state.me.code }).catch(() => {});
+  }
+  $('logout').onclick = () => doLogout(true);
+
+  document.querySelectorAll('[data-ico]').forEach((n) => setIcon(n, n.dataset.ico, Number(n.dataset.size) || 24));
+  // যে বাটন এখনো কাজ করে না, সেগুলো চাপলে এই বার্তা দেখায়
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-soon]');
+    if (b) toast(b.dataset.soon + ' এখনো চালু হয়নি');
+  });
+  setIcon($('menu-btn'), 'dots'); setIcon($('fab'), 'plus', 28); setIcon($('back'), 'back');
+  setIcon($('rec-cancel'), 'trash'); setIcon($('rec-send'), 'send'); updateAction();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && state.token) poll(); });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+
+  // ---------- আগের লগইন থাকলে সরাসরি ঢোকা ----------
+  (async () => {
+    if (!state.token) return;
+    try { const { user } = await api('/me'); await startApp(user); }
+    catch { doLogout(false); }
+  })();
+})();
+</script>
+</body>
+</html>
